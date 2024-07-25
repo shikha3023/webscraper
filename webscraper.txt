@@ -1,0 +1,86 @@
+import requests
+from bs4 import BeautifulSoup
+import csv
+import time
+
+def get_page_content(url):
+    """
+    Fetches the content of a webpage.
+
+    Parameters:
+    url (str): The URL of the webpage.
+
+    Returns:
+    BeautifulSoup: Parsed HTML content of the webpage.
+    """
+    headers = {'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36'}
+    response = requests.get(url, headers=headers)
+    
+    if response.status_code == 200:
+        return BeautifulSoup(response.content, 'html.parser')
+    else:
+        raise Exception(f"Failed to fetch the webpage: {url} with status code: {response.status_code}")
+
+def parse_data(soup):
+    """
+    Parses data from the BeautifulSoup object.
+
+    Parameters:
+    soup (BeautifulSoup): Parsed HTML content of the webpage.
+
+    Returns:
+    list: Extracted data from the webpage.
+    """
+    data = []
+    # Example: extracting data from a table with class 'example-table'
+    table = soup.find('table', {'class': 'example-table'})
+    if table:
+        for row in table.find_all('tr')[1:]:  # Skipping the header row
+            cols = row.find_all('td')
+            cols = [ele.text.strip() for ele in cols]
+            data.append(cols)
+    return data
+
+def save_to_csv(data, filename='output.csv'):
+    """
+    Saves the extracted data to a CSV file.
+
+    Parameters:
+    data (list): Extracted data from the webpage.
+    filename (str): The name of the output CSV file. Default is 'output.csv'.
+    """
+    with open(filename, 'w', newline='', encoding='utf-8') as file:
+        writer = csv.writer(file)
+        writer.writerow(['Column1', 'Column2', 'Column3'])  # Modify header as needed
+        writer.writerows(data)
+
+def handle_pagination(base_url, start_page=1, end_page=5):
+    """
+    Handles pagination to scrape data from multiple pages.
+
+    Parameters:
+    base_url (str): The base URL of the webpage with pagination.
+    start_page (int): The starting page number. Default is 1.
+    end_page (int): The ending page number. Default is 5.
+    """
+    all_data = []
+    for page in range(start_page, end_page + 1):
+        url = f"{base_url}?page={page}"
+        print(f"Fetching page {page}...")
+        soup = get_page_content(url)
+        page_data = parse_data(soup)
+        all_data.extend(page_data)
+        time.sleep(1)  # Be respectful to the server and avoid being blocked
+
+    save_to_csv(all_data)
+
+def main():
+    base_url = 'https://example.com/data'  # Replace with the actual URL
+    start_page = 1
+    end_page = 5  # Adjust according to the number of pages you want to scrape
+
+    handle_pagination(base_url, start_page, end_page)
+    print("Data scraping completed and saved to output.csv.")
+
+if __name__ == "__main__":
+    main()
